@@ -50,13 +50,22 @@ jobs:
 
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
-      - name: Sign chart package
-        run: |
-          PACKAGE=$(ls dist/*.tgz)
-          cosign sign-blob "$PACKAGE" --bundle "${PACKAGE}.sigstore.json" --yes
-
       - name: Push chart to GHCR OCI
-        run: helm push dist/*.tgz oci://${{ env.REGISTRY }}/${{ env.CHART_OCI_REPO }}
+        id: push
+        run: |
+          helm push dist/*.tgz oci://${{ env.REGISTRY }}/${{ env.CHART_OCI_REPO }}
+          CHART_NAME=$(yq .name "${{ inputs.chart_dir }}/Chart.yaml")
+          echo "chart_name=${CHART_NAME}" >> "${GITHUB_OUTPUT}"
+
+      - name: Resolve chart digest
+        id: digest
+        run: |
+          DIGEST=$(oras resolve "${REGISTRY}/${{ env.CHART_OCI_REPO }}/${{ steps.push.outputs.chart_name }}:${{ inputs.chart_version }}")
+          echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
+
+      - name: Sign chart
+        run: |
+          cosign sign --yes "${REGISTRY}/${{ env.CHART_OCI_REPO }}/${{ steps.push.outputs.chart_name }}@${{ steps.digest.outputs.digest }}"
 
       - name: Push Artifact Hub metadata
         run: |
@@ -75,7 +84,6 @@ jobs:
           fi
           gh release create "helm-v${{ inputs.chart_version }}" \
             dist/*.tgz \
-            dist/*.sigstore.json \
             --notes-file .release_notes \
             --title "helm-v${{ inputs.chart_version }}" \
             --target ${{ github.sha }} \
