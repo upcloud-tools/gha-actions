@@ -1,4 +1,4 @@
-name: OpenSSF Scorecard (reusable)
+name: OpenSSF Scorecard
 
 on:
   workflow_call:

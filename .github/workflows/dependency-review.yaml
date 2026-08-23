@@ -1,4 +1,4 @@
-name: Dependency Review (reusable)
+name: Dependency Review
 
 on:
   workflow_call:

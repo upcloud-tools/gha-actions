@@ -1,0 +1,37 @@
+name: Go Test
+
+on:
+  workflow_call:
+    inputs:
+      pre_test_commands:
+        description: Optional shell commands to run before tests (e.g. install system dependencies)
+        required: false
+        type: string
+        default: ""
+      test_command:
+        description: Command to run tests
+        required: false
+        type: string
+        default: make test
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - if: inputs.pre_test_commands != ''
+        name: Pre-test setup
+        run: ${{ inputs.pre_test_commands }}
+
+      - name: Run Go unit tests
+        run: ${{ inputs.test_command }}

@@ -1,4 +1,4 @@
-name: CodeQL Go (reusable)
+name: CodeQL Go
 
 on:
   workflow_call:
