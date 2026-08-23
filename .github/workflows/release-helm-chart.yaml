@@ -50,6 +50,11 @@ jobs:
 
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
+      - name: Sign chart package for GitHub release
+        run: |
+          PACKAGE=$(ls dist/*.tgz)
+          cosign sign-blob "$PACKAGE" --bundle "${PACKAGE}.sigstore.json" --yes
+
       - name: Push chart to GHCR OCI
         id: push
         run: |
@@ -84,6 +89,7 @@ jobs:
           fi
           gh release create "helm-v${{ inputs.chart_version }}" \
             dist/*.tgz \
+            dist/*.sigstore.json \
             --notes-file .release_notes \
             --title "helm-v${{ inputs.chart_version }}" \
             --target ${{ github.sha }} \

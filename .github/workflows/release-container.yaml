@@ -22,6 +22,7 @@ jobs:
       contents: write
       packages: write
       id-token: write
+      attestations: write
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,12 +37,15 @@ jobs:
         uses: ./.github/actions/ghcr-login
 
       - name: Tag release
+        id: tag
         run: |
           SRC="${{ env.REGISTRY }}/${{ github.repository }}:${{ github.sha }}"
           DST="${{ env.REGISTRY }}/${{ github.repository }}:${{ inputs.app_version }}"
           LATEST="${{ env.REGISTRY }}/${{ github.repository }}:latest"
           oras copy "$SRC" "$DST"
           oras copy "$SRC" "$LATEST"
+          DIGEST=$(oras resolve "$DST")
+          echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
 
       - name: Setup Cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
@@ -51,6 +55,13 @@ jobs:
           IMAGE="${{ env.REGISTRY }}/${{ github.repository }}:${{ inputs.app_version }}"
           DIGEST=$(oras resolve "$IMAGE")
           cosign sign --yes "${{ env.REGISTRY }}/${{ github.repository }}@${DIGEST}"
+
+      - name: Generate SLSA provenance
+        uses: actions/attest-build-provenance@db473f1c72cc59098120e0d0c73e259d65b13a3a # v2.4.0
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository }}
+          subject-digest: ${{ steps.tag.outputs.digest }}
+          push-to-registry: true
 
       - name: Generate SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
