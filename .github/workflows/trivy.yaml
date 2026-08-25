@@ -32,7 +32,7 @@ jobs:
 
       - if: github.event_name == 'schedule' || github.event_name == 'push'
         name: Log in to GHCR
-        uses: ./.github/actions/ghcr-login
+        uses: upcloud-tools/gha-actions/ghcr-login@c0df829cbad57268497db8cfb6174419f925b283 # main
 
       - name: Run Trivy vulnerability scanner (filesystem)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
