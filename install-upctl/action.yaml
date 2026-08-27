@@ -17,7 +17,7 @@ runs:
     - name: Cache upctl
       if: inputs.cache-enabled == 'true'
       id: cache-upctl
-      uses: actions/cache@v4
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: /usr/local/bin/upctl
         key: upctl-${{ inputs.upctl-version }}
@@ -34,7 +34,7 @@ runs:
 
     - name: Install cosign
       if: steps.check-upctl.outputs.installed != 'true'
-      uses: sigstore/cosign-installer@v3
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
     - name: Download and verify upctl
       if: steps.check-upctl.outputs.installed != 'true'
@@ -43,26 +43,26 @@ runs:
         set -e
         VERSION="${{ inputs.upctl-version }}"
         TEMP_DIR=$(mktemp -d)
-        
+
         echo "Downloading upctl v${VERSION}..."
         curl -Lo "${TEMP_DIR}/upcloud-cli_${VERSION}_amd64.deb" \
           "https://github.com/UpCloudLtd/upcloud-cli/releases/download/v${VERSION}/upcloud-cli_${VERSION}_amd64.deb"
-        
-        curl -Lo "${TEMP_DIR}/upcloud-cli_${VERSION}_amd64.sigstore.json" \
-          "https://github.com/UpCloudLtd/upcloud-cli/releases/download/v${VERSION}/upcloud-cli_${VERSION}_amd64.sigstore.json"
-        
+
+        curl -Lo "${TEMP_DIR}/upcloud-cli.sigstore.json" \
+          "https://github.com/UpCloudLtd/upcloud-cli/releases/download/v${VERSION}/upcloud-cli.sigstore.json"
+
         echo "Verifying upctl with cosign..."
         cosign verify-blob \
-          --bundle "${TEMP_DIR}/upcloud-cli_${VERSION}_amd64.sigstore.json" \
+          --bundle "${TEMP_DIR}/upcloud-cli.sigstore.json" \
           --certificate-identity https://github.com/UpCloudLtd/workflows/.github/workflows/build-provenance.yaml@refs/heads/main \
           --certificate-oidc-issuer https://token.actions.githubusercontent.com \
           "${TEMP_DIR}/upcloud-cli_${VERSION}_amd64.deb"
-        
+
         echo "Installing upctl..."
         sudo apt install -y "${TEMP_DIR}/upcloud-cli_${VERSION}_amd64.deb"
-        
+
         echo "Cleaning up temp directory..."
         rm -rf "${TEMP_DIR}"
-        
+
         echo "upctl installed successfully"
         upctl version
