@@ -1,0 +1,68 @@
+name: Install UpCloud CLI
+description: Install upctl with cosign verification and caching
+
+inputs:
+  upctl-version:
+    description: Version of upctl to install
+    required: false
+    default: "3.36.0"
+  cache-enabled:
+    description: Whether to use caching
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Cache upctl
+      if: inputs.cache-enabled == 'true'
+      id: cache-upctl
+      uses: actions/cache@v4
+      with:
+        path: /usr/local/bin/upctl
+        key: upctl-${{ inputs.upctl-version }}
+
+    - name: Check if upctl is installed
+      id: check-upctl
+      shell: bash
+      run: |
+        if command -v upctl &> /dev/null; then
+          echo "installed=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "installed=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Install cosign
+      if: steps.check-upctl.outputs.installed != 'true'
+      uses: sigstore/cosign-installer@v3
+
+    - name: Download and verify upctl
+      if: steps.check-upctl.outputs.installed != 'true'
+      shell: bash
+      run: |
+        set -e
+        VERSION="${{ inputs.upctl-version }}"
+        TEMP_DIR=$(mktemp -d)
+        
+        echo "Downloading upctl v${VERSION}..."
+        curl -Lo "${TEMP_DIR}/upcloud-cli_${VERSION}_amd64.deb" \
+          "https://github.com/UpCloudLtd/upcloud-cli/releases/download/v${VERSION}/upcloud-cli_${VERSION}_amd64.deb"
+        
+        curl -Lo "${TEMP_DIR}/upcloud-cli_${VERSION}_amd64.sigstore.json" \
+          "https://github.com/UpCloudLtd/upcloud-cli/releases/download/v${VERSION}/upcloud-cli_${VERSION}_amd64.sigstore.json"
+        
+        echo "Verifying upctl with cosign..."
+        cosign verify-blob \
+          --bundle "${TEMP_DIR}/upcloud-cli_${VERSION}_amd64.sigstore.json" \
+          --certificate-identity https://github.com/UpCloudLtd/workflows/.github/workflows/build-provenance.yaml@refs/heads/main \
+          --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+          "${TEMP_DIR}/upcloud-cli_${VERSION}_amd64.deb"
+        
+        echo "Installing upctl..."
+        sudo apt install -y "${TEMP_DIR}/upcloud-cli_${VERSION}_amd64.deb"
+        
+        echo "Cleaning up temp directory..."
+        rm -rf "${TEMP_DIR}"
+        
+        echo "upctl installed successfully"
+        upctl version
